@@ -1,8 +1,26 @@
+buildscript {
+    repositories {
+        maven {
+            credentials {
+                username "${artifactory_user}"
+                password "${artifactory_password}"
+            }
+            url "${artifactory_contextUrl}/repo"
+        }
+    }
+    dependencies {
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.5.2"
+    }
+}
+
+
 group 'app'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
-apply plugin: 'application'
+
+apply plugin: "com.jfrog.artifactory"
+apply plugin: 'maven-publish'
 
 sourceCompatibility = 1.8
 
@@ -14,30 +32,34 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.11'
 }
 
+def mainClassName = "org.thump.HelloWorld"
 
-mainClassName = "org.thump.Main"
+task myJar(type: Jar)
 
-
-
-task createDocs {
-    def extraDirs = file("$buildDir/extraDirs")
-    outputs.dir extraDirs
-    doLast {
-        ['graphs', 'pipeline', 'foo'].each { new File("${extraDirs}/${it}").mkdirs() }
-    }
-
+artifacts {
+    archives myJar
 }
 
-distributions {
-    main {
-        contents {
-            from(createDocs) {
-                //into root
-            }
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
         }
     }
 }
-distZip {
-    includeEmptyDirs = true
 
+artifactory {
+    contextUrl = "${artifactory_contextUrl}"
+    publish {
+        repoKey = project.version ==~ /SNAPSHOT/ ? repoKey = 'android-releases-local' : 'android-snapshots-local'
+        repository {
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+            maven = true
+
+        }
+        defaults {
+            publications('mavenJava')
+        }
+    }
 }
